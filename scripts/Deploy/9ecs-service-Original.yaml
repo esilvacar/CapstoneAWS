@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ECS Service + Task + AutoScaling
+
+Parameters:
+  ImageUrl:
+    Type: String
+    Description: URL de la imagen en ECR
+
+Resources:
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: feedback-task
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !ImportValue ecs-task-execution-role
+      TaskRoleArn: !ImportValue ecs-task-role
+      ContainerDefinitions:
+        - Name: feedback-container
+          Image: !Ref ImageUrl
+          PortMappings:
+            - ContainerPort: 5000
+          Environment:
+            - Name: DYNAMODB_TABLE
+              Value: !ImportValue dynamodb-feedback-table-name
+            - Name: AWS_REGION
+              Value: us-east-1
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/feedback
+              awslogs-region: us-east-1
+              awslogs-stream-prefix: ecs
+
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn: TaskDefinition
+    Properties:
+      Cluster: !ImportValue ecs-cluster-name
+      LaunchType: FARGATE
+      DesiredCount: 2
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !ImportValue services-private-subnet-1
+            - !ImportValue services-private-subnet-2
+          SecurityGroups:
+            - !ImportValue ecs-sg
+          AssignPublicIp: DISABLED
+      LoadBalancers:
+        - ContainerName: feedback-container
+          ContainerPort: 5000
+          TargetGroupArn: !ImportValue alb-target-group
+
+ECSService:
+Type: AWS::ECS::Service
+Properties:
+ServiceName: feedback-service
+
+Outputs:
+  ServiceName:
+    Value: !Ref ECSService

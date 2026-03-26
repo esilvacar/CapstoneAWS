@@ -1,0 +1,55 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: DynamoDB para Capstone Feedback Portal (Formulario completo)
+
+Resources:
+
+  FeedbackTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: capstone-feedback
+      BillingMode: PAY_PER_REQUEST
+
+      AttributeDefinitions:
+        - AttributeName: FeedbackId
+          AttributeType: S
+        - AttributeName: Email
+          AttributeType: S
+        - AttributeName: FechaRegistro
+          AttributeType: S
+
+      KeySchema:
+        - AttributeName: FeedbackId
+          KeyType: HASH
+
+      GlobalSecondaryIndexes:
+        - IndexName: EmailIndex
+          KeySchema:
+            - AttributeName: Email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+        - IndexName: FechaRegistroIndex
+          KeySchema:
+            - AttributeName: FechaRegistro
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+      Tags:
+        - Key: Project
+          Value: capstone
+        - Key: Name
+          Value: feedback-table
+
+Outputs:
+
+  DynamoDBTableName:
+    Value: !Ref FeedbackTable
+    Export:
+      Name: dynamodb-feedback-table-name
+
+  DynamoDBTableArn:
+    Value: !GetAtt FeedbackTable.Arn
+    Export:
+      Name: dynamodb-feedback-table-arn

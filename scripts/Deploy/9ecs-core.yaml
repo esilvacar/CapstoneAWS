@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "ECS Cluster + CloudWatch Logs (Lab compatible)"
+
+Resources:
+
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: feedback-cluster
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: /ecs/feedback
+      RetentionInDays: 7
+
+Outputs:
+
+  ECSClusterName:
+    Description: "Nombre del ECS Cluster"
+    Value: !Ref ECSCluster
+    Export:
+      Name: ecs-cluster-name
+
+  LogGroupName:
+    Description: "Log Group para ECS"
+    Value: !Ref LogGroup
+    Export:
+      Name: ecs-log-group
+
+  LabRoleArn:
+    Description: "ARN del LabRole para ECS Tasks"
+    Value: arn:aws:iam::836215661399:role/LabRole
+    Export:
+      Name: ecs-lab-role

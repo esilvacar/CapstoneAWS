@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: "VPC completa para Feedback Portal con subnets públicas y privadas, IGW y NAT"
+
+Parameters:
+  VpcCIDR:
+    Type: String
+    Default: 10.83.0.0/20
+    Description: CIDR Block de la VPC
+  PublicSubnet1CIDR:
+    Type: String
+    Default: 10.83.0.0/24
+  PublicSubnet2CIDR:
+    Type: String
+    Default: 10.83.1.0/24
+  PrivateSubnet1CIDR:
+    Type: String
+    Default: 10.83.2.0/24
+  PrivateSubnet2CIDR:
+    Type: String
+    Default: 10.83.3.0/24
+
+Resources:
+
+  ### VPC ###
+  ServicesVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: services-vpc
+
+  ### Internet Gateway ###
+  ServicesIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: services-igw
+
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref ServicesVPC
+      InternetGatewayId: !Ref ServicesIGW
+
+  ### Public Subnets ###
+  ServicePublicSnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ServicesVPC
+      CidrBlock: !Ref PublicSubnet1CIDR
+      AvailabilityZone: !Select [0, !GetAZs ""] 
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: service-public-snet1
+
+  ServicePublicSnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ServicesVPC
+      CidrBlock: !Ref PublicSubnet2CIDR
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: true
+      Tags:
+        - Key: Name
+          Value: service-public-snet2
+
+  ### Private Subnets ###
+  ServicePrivateSnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ServicesVPC
+      CidrBlock: !Ref PrivateSubnet1CIDR
+      AvailabilityZone: !Select [0, !GetAZs ""] 
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: service-private-snet1
+
+  ServicePrivateSnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ServicesVPC
+      CidrBlock: !Ref PrivateSubnet2CIDR
+      AvailabilityZone: !Select [1, !GetAZs ""]
+      MapPublicIpOnLaunch: false
+      Tags:
+        - Key: Name
+          Value: service-private-snet2
+
+  ### Elastic IPs para NAT Gateways ###
+  NatEIP1:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachIGW
+    Properties:
+      Domain: vpc
+
+  NatEIP2:
+    Type: AWS::EC2::EIP
+    DependsOn: AttachIGW
+    Properties:
+      Domain: vpc
+
+  ### NAT Gateways ###
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP1.AllocationId
+      SubnetId: !Ref ServicePublicSnet1
+      Tags:
+        - Key: Name
+          Value: nat-gateway-1
+
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP2.AllocationId
+      SubnetId: !Ref ServicePublicSnet2
+      Tags:
+        - Key: Name
+          Value: nat-gateway-2
+
+  ### Route Tables ###
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ServicesVPC
+      Tags:
+        - Key: Name
+          Value: public-rt
+
+  PrivateRouteTable1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ServicesVPC
+      Tags:
+        - Key: Name
+          Value: private-rt-1
+
+  PrivateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref ServicesVPC
+      Tags:
+        - Key: Name
+          Value: private-rt-2
+
+  ### Public Route ###
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIGW
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref ServicesIGW
+
+  ### Asociaciones de subnets a route tables ###
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ServicePublicSnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ServicePublicSnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ServicePrivateSnet1
+      RouteTableId: !Ref PrivateRouteTable1
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref ServicePrivateSnet2
+      RouteTableId: !Ref PrivateRouteTable2
+
+  ### Routes privadas via NAT ###
+  PrivateRoute1:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway1
+
+  PrivateRoute2:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref PrivateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NatGateway2
+
+Outputs:
+  VPCId:
+    Value: !Ref ServicesVPC
+    Export:
+      Name: services-vpc-id
+
+  PublicSubnet1:
+    Value: !Ref ServicePublicSnet1
+    Export:
+      Name: services-public-subnet-1
+
+  PublicSubnet2:
+    Value: !Ref ServicePublicSnet2
+    Export:
+      Name: services-public-subnet-2
+
+  PrivateSubnet1:
+    Value: !Ref ServicePrivateSnet1
+    Export:
+      Name: services-private-subnet-1
+
+  PrivateSubnet2:
+    Value: !Ref ServicePrivateSnet2
+    Export:
+      Name: services-private-subnet-2

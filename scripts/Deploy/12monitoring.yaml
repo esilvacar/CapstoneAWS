@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: CloudWatch Alarms + Dashboard para Feedback Portal
+
+Parameters:
+  ClusterName:
+    Type: String
+    Default: feedback-cluster
+
+  ServiceName:
+    Type: String
+    Default: feedback-service
+
+Resources:
+
+  #############################
+  # SNS (para notificaciones)
+  #############################
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: feedback-alarms
+
+  #############################
+  # ECS CPU ALARM
+  #############################
+  ECSCPUHighAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ECS-CPU-High
+      Namespace: AWS/ECS
+      MetricName: CPUUtilization
+      Dimensions:
+        - Name: ClusterName
+          Value: !Ref ClusterName
+        - Name: ServiceName
+          Value: !Ref ServiceName
+      Statistic: Average
+      Period: 60
+      EvaluationPeriods: 2
+      Threshold: 70
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  #############################
+  # ALB 5XX ERROR ALARM
+  #############################
+  ALB5XXAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: ALB-5XX-Errors
+      Namespace: AWS/ApplicationELB
+      MetricName: HTTPCode_Target_5XX_Count
+      Statistic: Sum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: TargetGroup
+          Value: !ImportValue alb-target-group
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  #############################
+  # DASHBOARD
+  #############################
+  Dashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: Feedback-Dashboard
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "x": 0,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/ECS", "CPUUtilization", "ClusterName", "${ClusterName}", "ServiceName", "${ServiceName}" ]
+                ],
+                "stat": "Average",
+                "period": 60,
+                "title": "ECS CPU Utilization"
+              }
+            },
+            {
+              "type": "metric",
+              "x": 12,
+              "y": 0,
+              "width": 12,
+              "height": 6,
+              "properties": {
+                "metrics": [
+                  [ "AWS/ApplicationELB", "HTTPCode_Target_5XX_Count", "TargetGroup", "${alb-target-group}" ]
+                ],
+                "stat": "Sum",
+                "period": 60,
+                "title": "ALB 5XX Errors"
+              }
+            }
+          ]
+        }
+
+Outputs:
+  DashboardName:
+    Value: Feedback-Dashboard

@@ -1,0 +1,66 @@
+AWSTempAWSTemplateFormatVersion: '2010-09-09'
+Description: ECS Service + Task + AutoScaling (Usando rol voclabs)
+
+Parameters:
+  RepositoryName:
+    Type: String
+    Description: "Nombre del repositorio ECR (ej: feedback-backend)"
+
+  ImageTag:
+    Type: String
+    Description: "Tag de la imagen (ej: latest)"
+
+Resources:
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: feedback-task
+      Cpu: "256"
+      Memory: "512"
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: arn:aws:iam::836215661399:role/voclabs
+      TaskRoleArn: arn:aws:iam::836215661399:role/voclabs
+      ContainerDefinitions:
+        - Name: feedback-container
+          Image: !Sub "${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${RepositoryName}:${ImageTag}"
+          PortMappings:
+            - ContainerPort: 5000
+          Environment:
+            - Name: DYNAMODB_TABLE
+              Value: !ImportValue dynamodb-feedback-table-name
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/feedback
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: ecs
+
+  ECSService:
+    Type: AWS::ECS::Service
+    DependsOn: TaskDefinition
+    Properties:
+      Cluster: !ImportValue ecs-cluster-name
+      LaunchType: FARGATE
+      DesiredCount: 2
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets:
+            - !ImportValue services-private-subnet-1
+            - !ImportValue services-private-subnet-2
+          SecurityGroups:
+            - !ImportValue ecs-sg
+          AssignPublicIp: DISABLED
+      LoadBalancers:
+        - ContainerName: feedback-container
+          ContainerPort: 5000
+          TargetGroupArn: !ImportValue alb-target-group
+
+Outputs:
+  ServiceName:
+    Value: !Ref ECSService
+    Description: "Nombre del servicio ECS creado"
