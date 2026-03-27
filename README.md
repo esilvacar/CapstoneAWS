@@ -60,19 +60,11 @@ Las variables están organizadas en las siguientes categorías:
 - IDs de discos del SO
 
 ## Cómo Usar
+### Ejecutar los siguientes pasos siguiendo el orden indicado
 
-### Ejecucutar los archivos bash en el siguiente orden
-
-
-	Importar los 5 archivos sh a la consola de CloudShell
-2CreaArchivo_app_py.sh
-3Crear_html.sh
-4crear_requirements_txt.sh
-5crear_dockerfile_y_repositorio.sh
-6push_imagen_ecr.sh
+### 1. Importar a la consola de CloudShell los 5 archivos ubicados en la ruta CaptoneAWS/Scripts/Bash:
 
 ```bash
-Importar los 5 archivos sh a la consola de CloudShell
 2CreaArchivo_app_py.sh
 3Crear_html.sh
 4crear_requirements_txt.sh
@@ -80,22 +72,84 @@ Importar los 5 archivos sh a la consola de CloudShell
 6push_imagen_ecr.sh
 ```
 
-### Despliegue en QA
+### 1.1 Preparar Backend + Formulario (Python Flask).
+Es una API en Flask que recibe datos desde un formulario y los guarda en DynamoDB.
+Creará archivo app.py que será utilizado por docker, ejecutar lo siguiente:
+
 ```bash
-terraform apply -var-file="terraform.tfvars.qa"
+chmod +x 2CreaArchivo_app_py.sh
+./2CreaArchivo_app_py.sh
 ```
 
-### Despliegue en UAT
+### 1.2 Crea el Web FrontEnd HTML que será presentado al cliente 
+Ejecutar lo siguiente:
 ```bash
-terraform apply -var-file="terraform.tfvars.uat"
+chmod +x 3Crear_html.sh
+./3Crear_html.sh
 ```
 
-### Desplegar con variables personalizadas
+### 1.3 Crea el archivo requirements.txt
+Este archivo será utilizado por docker, ejecutar lo siguiente:
 ```bash
-terraform apply -var="location=westus" -var="vm_size=Standard_D2s_v3"
+chmod +x 4crear_requirements_txt.sh
+./4crear_requirements_txt.sh
 ```
 
-## Personalización para Nuevos Ambientes
+### 1.4 Crea y ejecutar dockerfile y repositorio
+Ejecutar lo siguiente:
+```bash
+chmod +x 5crear_dockerfile_y_repositorio.sh
+./5crear_dockerfile_y_repositorio.sh
+```
+
+### 1.5 Push de la imagen en ECR
+ECS podrá usar esta imagen, ejecutar lo siguiente:
+```bash
+chmod +x 6push_imagen_ecr.sh
+./6push_imagen_ecr.sh
+```
+
+### 2 Ejecución de archivos YAML para crear CloudFormation.
+Importar a la consola de CloudShell los archivos ubicados en la ruta CaptoneAWS/Scripts/Deploy
+
+### 2.1 Preparar Backend + Formulario (Python Flask)
+
+```bash
+	Crear VPC + Networking 
+ Este template incluye:
+	VPC services-vpc 10.83.0.0/20
+	2 Subnets públicas (service-public-snet1 y service-public-snet2)
+	2 Subnets privadas (service-private-snet1 y service-private-snet2)
+	Internet Gateway + NAT Gateways (uno por subnet pública)
+	Route Tables y asociaciones
+	Alta disponibilidad (cada subnet en una AZ distinta)
+	Security Groups base para ECS/ALB (puedes modificar luego)
+
+	Ejecutar:
+aws cloudformation create-stack \
+  --stack-name services-vpc \
+  --template-body file://7crea_vpc.yaml \
+  --capabilities CAPABILITY_NAMED_IAM
+
+```
+
+### 1.1 Preparar Backend + Formulario (Python Flask).
+Es una API en Flask que recibe datos desde un formulario y los guarda en DynamoDB.
+Creará archivo app.py que será utilizado por docker, ejecutar lo siguiente:
+
+```bash
+chmod +x 2CreaArchivo_app_py.sh
+./2CreaArchivo_app_py.sh
+```
+
+### 1.2 Crea el Web FrontEnd HTML que será presentado al cliente 
+Ejecutar lo siguiente:
+```bash
+chmod +x 3Crear_html.sh
+./3Crear_html.sh
+--------------------------
+
+## 1.6 Personalización para Nuevos Ambientes
 
 Para crear un nuevo archivo de variables para un ambiente personalizado:
 
