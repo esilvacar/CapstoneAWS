@@ -4,9 +4,13 @@
 
 Esta solución crea un portal contenerizado con ECS Fargate, 100% funcional, con almacenamiento en DynamoDB, implementado con contenedores y alta disponibilidad, siguiendo buenas prácticas de seguridad, escalabilidad y monitoreo, que permita a los clientes aplicar un formalario para brindar a corto plazo un servicio más personalizado.
 
+En la raíz principal de este proyecto encuentra dos carpetas principales:
+- **Documentos** - Contiene un archivo con la información del CAPSTONE, como lo son objetivos, diagramas, justificación técnica, etc. y toda información relevante para justificar el porqué del proyecto.
+- **Scritps** - Contiene los scripts requeridos para realizar el deploy del aplicativo en su totalidad y con 100% de exito.
+
 ## Archivos Generados
 
-### Archivos Principales
+### Archivos Principales para el despliegue del aplicativo
 
 - **2CreaArchivo_app_py.sh** - Es una API en Flask que recibe datos y los guarda en DynamoDB, creará archivo app.py que será utilizado por docker.
 - **3Crear_html.sh** - Crea el Web FrontEnd HTML que será presentado al cliente.
